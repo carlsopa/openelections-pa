@@ -1,12 +1,6 @@
 import tabula
 import pandas as pd
-from PyPDF2 import PdfFileReader
-
-beaver = 'data\Beaver PA 2020 Primary PrecinctResults.pdf'#differnt then the others has fewer columns--guess=False--possibility
-blair = 'data\Blair PA June 2 Elections Results.pdf'#a lot of nan columns
-bradford = 'data\Bradford PA Primary SOVC_JUNEFINALREPORT.pdf'#really screwey--possibility
-centre = 'data\Centre PA 2020 Primary.pdf'#empty columns/rows
-cameron = 'data\CAMERON PA OFFICIAL CANVASS_6-2-20_PRECINCT SUMMARY.pdf'#doesnt open?
+import PyPDF2
 
 def HeaderFooterRemoval(dataframe,row_count):
     df.drop(df.tail(row_count).index,inplace=True)
@@ -53,15 +47,21 @@ first_page=1
 last_page = 1009
 page = first_page
 duplicate = True
+
+
+#start
+
 while page<=last_page:
-    data = tabula.read_pdf(beaver,guess=False,multiple_tables=True,pages=(page))
+    
+    data = tabula.read_pdf(centre,guess=False,multiple_tables=True,pages=(page))
     x = data[0]
+    # print(x)
 #determine if all the data is inside the row header
     if len(x)!=1:
         df = x
     else:
         df = ColumnHeaderSplit(x)
-
+    
     county = str(df.iloc[1,-1])
     HeaderFooterRemoval(df,2)
     df = df.reset_index(drop=True)
@@ -129,4 +129,4 @@ while page<=last_page:
     office_index=[]
     result.append(df)
     page +=1
-pd.concat(result).to_csv('beaver_county.csv')
+pd.concat(result).to_csv('blair_county.csv')
