@@ -7,7 +7,7 @@ import argparse
 #Bradford has to be dealt with seperatly from the others
 #beaver, blair & centre all work the same
 report_column_headers=['Candidate','Total','Vote %','Election Day','Absentee']
-result = []
+page_result = []
 
 def HeaderFooterRemoval(dataframe,row_count):
     dataframe.drop(dataframe.tail(row_count).index,inplace=True)
@@ -70,11 +70,9 @@ def scrapper(party, county):
     page = 1
     remove_strings=['Vote For 1','Vote For 8','TOTAL','TOTAL VOTE %','Vote For 4','Election','Day','Vote For 3']
     data = tabula.read_pdf(result_pdf, guess=False,
-                           multiple_tables=True, stream=True, pages=('171'))
+                           multiple_tables=True, stream=True, pages=('1-800'))
     for x in data:
         df = x
-        # print(page)
-
         if county !='Bradford':
             county = df.iloc[1,-1]
             precinct = df.iloc[2,0]
@@ -87,21 +85,19 @@ def scrapper(party, county):
             df.dropna(axis='columns',how='all',inplace=True)
             df = df.reset_index(drop=True)
             var = len(df.columns)
-            # print(df)
             if var==1:
                 pass
             elif var==2:
                 candidate = ''
                 vote = 0
                 percentage = 0
-                # print(page)
+                print(page)
                 removal_index = []
                 precinct = df.iloc[0,0]
                 race = df.iloc[1,0]
                 df.drop(df.index[[0,1]],inplace=True)
                 df = df.reset_index(drop=True)
                 if str(df.iloc[0,1])[-1]=='%':
-                    # print(df)
                     for x in df.index:
                         if isinstance(df.iloc[x,1],float) !=True:
                             candidate = two_entries(df.iloc[x,0].rsplit(' ',1))[0]
@@ -132,32 +128,61 @@ def scrapper(party, county):
                         df = df[['Candidate','precinct','race','Total','Vote %','Election Day','Absentee']]
                     else:
                         if df.iloc[0,1] == 'Absentee':
-                            print(page)
-                            # print(df)
                             found = False
                             row_delete = []
-                            df.drop(df.index[[0,1]],inplace=True)
+                            df.drop(df.index[[0]],inplace=True)
                             df = df.reset_index(drop=True)
-                            print(df)
                             for index,row in df.iterrows(): 
-                                result = df.iloc[index,0].rsplit(' ',1)                           
+                                result = df.iloc[index,0].rsplit(' ',1)   
                                 if row.isnull().sum()==0:
-                                    print(len(result))
                                     if len(result) > 1:
-                                        print(result)
                                         candidate = result[0].replace(str(df.iloc[index,0].rsplit(' ',1)[1]),'')
                                         vote = result[1]
-
                                         result_length = len(vote)
                                         total, election_day = vote[:len(vote)//2],vote[len(vote)//2:]
                                         if total != election_day:
                                             election_day = vote
                                             total = result[0][-len(vote):]
-
-                                        print(total)
-                                        print(election_day)
+                                        df.loc[index,report_column_headers[0]] = candidate
+                                        df.loc[index,report_column_headers[1]] = total
+                                        df.loc[index,report_column_headers[2]] = np.nan
+                                        df.loc[index,report_column_headers[3]] = election_day
+                                        df.loc[index,report_column_headers[4]] = df.iloc[index,1]
+                                    else:
+                                        election_day = df.iloc[index,0]
+                                        absentee = df.iloc[index,1]
+                                        df.loc[index,report_column_headers[2]] = np.nan
+                                        df.loc[index+1,report_column_headers[3]] = election_day
+                                        df.loc[index+1,report_column_headers[4]] = df.iloc[index,1]
+                                        row_delete.append(index)
                                 else:
-                                    pass
+                                    total = 0
+                                    if str(df.iloc[index,0])[-1:]=='%':
+                                        result = df.iloc[index,0].rsplit(' ',2)
+                                        if len(result) > 1:
+                                            df.loc[index,report_column_headers[0]] = result[0]
+                                            df.loc[index,report_column_headers[1]] = result[1]
+                                            df.loc[index,report_column_headers[2]] = result[2]
+                                            pass
+                                        else:
+                                            total = result
+                                            df.loc[index+1,report_column_headers[1]] = total
+                                            df.loc[index+1,report_column_headers[0]] = df.iloc[index+1,0]
+                                            row_delete.append(index)
+                                            pass
+                                    else:
+                                        try:
+                                            total = int(df.iloc[index,0].rsplit(' ',1)[1])
+                                            candidate = str(df.iloc[index,0].rsplit(' ',1)[0])
+                                            df.loc[index,report_column_headers[0]] = candidate
+                                            df.loc[index,report_column_headers[1]] = total
+                                        except:
+                                            if 'Voter' in df.iloc[index,0]:
+                                                df.loc[index,report_column_headers[0]] = df.iloc[index,0]
+                                            else:
+                                                race = df.iloc[index,0]
+                                    df.loc[index,'race'] = race
+                            df.drop(df.index[row_delete],inplace=True)
                         else:
                             df.drop(df.index[0],inplace=True)
                             df = df.reset_index(drop=True)
@@ -177,7 +202,6 @@ def scrapper(party, county):
                                 df.drop(df.index[remove_list],inplace=True)
                                 df.drop(df.index[3],inplace=True)
                                 df = df.reset_index(drop=True)
-                                
                                 for x in df.index:
                                     try:
                                         vote = int(df.iloc[x,0].rsplit(' ',3)[1])
@@ -200,14 +224,10 @@ def scrapper(party, county):
                                     else:
                                         df.loc[x,'race'] = secondary_race
                                 df = df[['Candidate','precinct','race','Total','Vote %','Election Day','Absentee']]
-                result.append(df)
+                page_result.append(df)
             elif var==3:
-                # print(df)
                 pass
-
-            
             elif var==4:
-                # print(page)
                 candidate = ''
                 vote = 0
                 percentage = ''
@@ -254,7 +274,6 @@ def scrapper(party, county):
                         row_delete = []
                         df.drop(df.index[[0,1]],inplace=True)
                         df = df.reset_index(drop=True)
-                       
                         for index,row in df.iterrows():                            
                             if row.isnull().sum()==1 and found == False:
                                 vote = df.iloc[index,0][-2:]
@@ -298,12 +317,10 @@ def scrapper(party, county):
                         
                         df.rename(columns={'Summary Results Report':'Candidate','Unnamed: 0':'Total','Unnamed: 2':'Vote %'},inplace=True)
                         df = df[['Candidate','precinct','race','Total','Vote %','Absentee']]
-                result.append(df)
+                page_result.append(df)
             elif var==5:
                 # print(df)
                 pass
-
-
             # beaver 3 column:
             # if len(df.columns)==3:
             #     df['Unnamed: 0'].fillna(df['Unnamed: 1'],inplace=True)
@@ -314,9 +331,8 @@ def scrapper(party, county):
         else:
             Bradford_scrapper()
         county = df.iloc[1, -1]
-        # print(df)
         page +=1
-    # pd.concat(result).to_csv('multi_county.csv')
+    pd.concat(page_result).to_csv('multi_county.csv')
 
 
 parser = argparse.ArgumentParser()
